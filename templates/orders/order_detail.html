@@ -19,7 +19,7 @@
             <h2><i class="fas fa-truck"></i> Order Status</h2>
             <div class="status-tracker" id="statusTracker">
                 {% with statuses='pending,confirmed,preparing,ready,completed' %}
-                {% for s in 'pending confirmed preparing ready completed'|split %}
+                {% for s in statuses %}
                 {% endfor %}
                 {% endwith %}
                 <div class="tracker-steps">

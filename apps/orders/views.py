@@ -182,7 +182,12 @@ def place_order(request, stall_id):
 @login_required
 def order_detail(request, pk):
     order = get_object_or_404(Order, pk=pk, user=request.user)
-    return render(request, 'orders/order_detail.html', {'order': order})
+    statuses = ['pending', 'confirmed', 'preparing', 'ready', 'completed']
+
+    return render(request, 'orders/order_detail.html', {
+        'order': order,
+        'statuses': statuses,
+    })
 
 
 @login_required

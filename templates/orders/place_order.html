@@ -1,0 +1,324 @@
+{% extends 'base/base.html' %} {% load static %} {% block title %}Order from {{
+stall.name }}{% endblock %} {% block content %}
+<div class="container order-page">
+  <div class="order-header">
+    <a href="{% url 'stall_detail' stall.pk %}" class="back-link"
+      ><i class="fas fa-arrow-left"></i> Back to Stall</a
+    >
+    <h1><i class="fas fa-shopping-cart"></i> Order from {{ stall.name }}</h1>
+  </div>
+
+  <div class="order-layout">
+    <!-- Menu Section -->
+    <div class="menu-section">
+      <div class="menu-search">
+        <input
+          type="text"
+          id="menuSearch"
+          placeholder="🔍 Search menu items..."
+          oninput="filterMenu(this.value)"
+        />
+      </div>
+
+      <!-- Category Tabs -->
+      <div class="category-tabs">
+        <button class="cat-tab active" onclick="filterCategory('all', this)">
+          All
+        </button>
+        {% for cat_val, cat_label in categories %}
+        <button class="cat-tab" onclick="filterCategory('{{ cat_val }}', this)">
+          {{ cat_label }}
+        </button>
+        {% endfor %}
+        <button class="cat-tab" onclick="filterCategory('snacks', this)">
+          Snacks
+        </button>
+        <button class="cat-tab" onclick="filterCategory('meals', this)">
+          Meals
+        </button>
+        <button class="cat-tab" onclick="filterCategory('beverages', this)">
+          Beverages
+        </button>
+        <button class="cat-tab" onclick="filterCategory('desserts', this)">
+          Desserts
+        </button>
+        <button class="cat-tab" onclick="filterCategory('combos', this)">
+          Combos
+        </button>
+      </div>
+
+      <div class="menu-grid" id="menuGrid">
+        {% for item in menu_items %}
+        <div
+          class="menu-item-card"
+          data-category="{{ item.category }}"
+          data-name="{{ item.name|lower }}"
+          data-id="{{ item.id }}"
+        >
+          <div class="menu-item-img">
+            {% if item.image %}
+            <img src="{{ item.image.url }}" alt="{{ item.name }}" />
+            {% else %}
+            <div class="menu-img-placeholder">
+                {% if item.category == 'beverages' %}
+                    ☕
+                {% elif item.category == 'desserts' %}
+                    🍰
+                {% elif item.category == 'meals' %}
+                    🍱
+                {% elif item.category == 'combos' %}
+                    🍽️
+                {% else %}
+                    🍿
+                {% endif %}
+            </div>
+            {% endif %} {% if item.is_vegetarian %}
+            <span class="veg-badge" title="Vegetarian">🌿</span>
+            {% endif %}
+          </div>
+          <div class="menu-item-info">
+            <h4>{{ item.name }}</h4>
+            <p>{{ item.description|truncatechars:50 }}</p>
+            <div class="menu-item-meta">
+              {% if item.calories %}<span class="calorie-badge"
+                >{{ item.calories }} cal</span
+              >{% endif %}
+              <span class="prep-badge"
+                ><i class="fas fa-clock"></i> {{ item.prep_time_minutes
+                }}min</span
+              >
+            </div>
+          </div>
+          <div class="menu-item-footer">
+            <span class="menu-price">₹{{ item.price }}</span>
+            <div
+              class="qty-control"
+              id="qty-{{ item.id }}"
+              style="display: none"
+            >
+              <button onclick="changeQty({{ item.id }}, -1)">−</button>
+              <span id="qty-num-{{ item.id }}">1</span>
+              <button onclick="changeQty({{ item.id }}, 1)">+</button>
+            </div>
+            <button
+              class="btn-add"
+              id="add-btn-{{ item.id }}"
+              onclick="addToCart({{ item.id }}, '{{ item.name|escapejs }}', {{ item.price }})"
+            >
+              + Add
+            </button>
+          </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+          <i class="fas fa-utensils"></i>
+          <p>No menu items available right now.</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Cart & Order Form -->
+    <div class="cart-section">
+      <!-- Slot Recommendation -->
+      <div class="slot-recommendation">
+        <h3><i class="fas fa-magic"></i> AI Slot Recommendation</h3>
+        <div class="slot-recs">
+          {% for slot_value, slot_label, level, count in slot_recommendations %}
+          <div class="slot-rec-item slot-rec-{{ level }}">
+            <div class="slot-rec-time">{{ slot_label }}</div>
+            <div class="slot-rec-info">
+              <span class="slot-rec-count">{{ count }} orders</span>
+              <span class="slot-rec-level">
+                {% if level == 'low' %}✅ Recommended {% elif level == 'medium'
+                %}⚠️ Moderate {% else %}🔴 Very Busy{% endif %}
+              </span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Cart -->
+      <div class="cart-box">
+        <h3><i class="fas fa-shopping-bag"></i> Your Cart</h3>
+        <div id="cartItems" class="cart-items">
+          <div class="cart-empty" id="cartEmpty">
+            <i class="fas fa-shopping-cart"></i>
+            <p>Your cart is empty</p>
+          </div>
+        </div>
+        <div class="cart-total" id="cartTotal" style="display: none">
+          <div class="total-row">
+            <span>Subtotal</span>
+            <span id="totalAmount">₹0</span>
+          </div>
+          <div class="total-row total-main">
+            <strong>Total</strong>
+            <strong id="grandTotal">₹0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Order Form -->
+      <form method="post" id="orderForm" class="order-form">
+        {% csrf_token %}
+        <input type="hidden" name="cart_data" id="cartData" value="[]" />
+
+        <h3><i class="fas fa-clock"></i> Select Pickup Slot</h3>
+        <div class="slot-options">
+          {% for slot_value, slot_label in form.break_slot.field.choices %}
+          <label class="slot-option">
+            <input
+              type="radio"
+              name="break_slot"
+              value="{{ slot_value }}"
+              required
+            />
+            <div class="slot-option-content">
+              <i class="fas fa-clock"></i>
+              <span>{{ slot_label }}</span>
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div class="form-group">
+          <label><i class="fas fa-calendar"></i> Pickup Date</label>
+          {{ form.pickup_date }}
+        </div>
+
+        <div class="form-group">
+          <label><i class="fas fa-sticky-note"></i> Special Instructions</label>
+          {{ form.special_instructions }}
+        </div>
+
+        <button
+          type="submit"
+          class="btn btn-primary btn-full btn-large"
+          id="placeOrderBtn"
+          disabled
+        >
+          <i class="fas fa-check-circle"></i> Place Order
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  let cart = {};
+//   Object.values(cart)
+
+  function addToCart(id, name, price) {
+    if (cart[id]) {
+      cart[id].quantity++;
+      document.getElementById("qty-num-" + id).textContent = cart[id].quantity;
+    } else {
+      cart[id] = {
+        id,
+        name,
+        price: parseFloat(price),
+        quantity: 1,
+        customization: "",
+      };
+      document.getElementById("qty-" + id).style.display = "flex";
+      document.getElementById("add-btn-" + id).style.display = "none";
+    }
+
+    console.log("Add clicked:", id);
+    updateCartUI();
+  }
+
+  function changeQty(id, delta) {
+    if (!cart[id]) return;
+    cart[id].quantity += delta;
+    if (cart[id].quantity <= 0) {
+      delete cart[id];
+      document.getElementById("qty-" + id).style.display = "none";
+      document.getElementById("add-btn-" + id).style.display = "";
+    } else {
+      document.getElementById("qty-num-" + id).textContent = cart[id].quantity;
+    }
+    updateCartUI();
+  }
+
+  function updateCartUI() {
+    const cartItems = document.getElementById("cartItems");
+    const cartEmpty = document.getElementById("cartEmpty");
+    const cartTotal = document.getElementById("cartTotal");
+    const placeOrderBtn = document.getElementById("placeOrderBtn");
+    const items = Object.values(cart);
+
+    if (items.length === 0) {
+      cartEmpty.style.display = "flex";
+      cartTotal.style.display = "none";
+      placeOrderBtn.disabled = true;
+      document.getElementById("cartData").value = "[]";
+      return;
+    }
+
+    cartEmpty.style.display = "none";
+    cartTotal.style.display = "block";
+    placeOrderBtn.disabled = false;
+
+    // Remove old item rows
+    document.querySelectorAll(".cart-item-row").forEach((el) => el.remove());
+
+    let total = 0;
+    items.forEach((item) => {
+      const subtotal = item.price * item.quantity;
+      total += subtotal;
+      const row = document.createElement("div");
+      row.className = "cart-item-row";
+      row.innerHTML = `
+            <div class="cart-item-name">${item.name}</div>
+            <div class="cart-item-qty">
+                <button onclick="changeQty(${item.id}, -1)">−</button>
+                <span>${item.quantity}</span>
+                <button onclick="changeQty(${item.id}, 1)">+</button>
+            </div>
+            <div class="cart-item-price">₹${subtotal.toFixed(0)}</div>
+        `;
+      cartItems.appendChild(row);
+    });
+
+    document.getElementById("totalAmount").textContent = "₹" + total.toFixed(0);
+    document.getElementById("grandTotal").textContent = "₹" + total.toFixed(0);
+    document.getElementById("cartData").value = JSON.stringify(items);
+  }
+
+  function filterMenu(query) {
+    document.querySelectorAll(".menu-item-card").forEach((card) => {
+      const name = card.getAttribute("data-name");
+      card.style.display = name.includes(query.toLowerCase()) ? "" : "none";
+    });
+  }
+
+  function filterCategory(cat, btn) {
+    document
+      .querySelectorAll(".cat-tab")
+      .forEach((t) => t.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".menu-item-card").forEach((card) => {
+      card.style.display =
+        cat === "all" || card.getAttribute("data-category") === cat
+          ? ""
+          : "none";
+    });
+  }
+
+  document.getElementById("orderForm").addEventListener("submit", function (e) {
+    const items = Object.values(cart);
+
+    if (items.length === 0) {
+      e.preventDefault();
+      alert("Please add items to your cart first!");
+      return;
+    }
+
+    // 🔥 FORCE UPDATE hidden input before submit
+    document.getElementById("cartData").value = JSON.stringify(items);
+  });
+</script>
+{% endblock %}

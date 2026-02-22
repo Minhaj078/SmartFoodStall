@@ -1,0 +1,67 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}My Orders{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1><i class="fas fa-list-alt"></i> My Orders</h1>
+        <a href="{% url 'stall_list' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Order
+        </a>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+        <a href="{% url 'my_orders' %}" class="filter-tab {% if not status_filter %}active{% endif %}">All</a>
+        <a href="?status=pending" class="filter-tab {% if status_filter == 'pending' %}active{% endif %}">Pending</a>
+        <a href="?status=preparing" class="filter-tab {% if status_filter == 'preparing' %}active{% endif %}">Preparing</a>
+        <a href="?status=ready" class="filter-tab {% if status_filter == 'ready' %}active{% endif %}">Ready</a>
+        <a href="?status=completed" class="filter-tab {% if status_filter == 'completed' %}active{% endif %}">Completed</a>
+        <a href="?status=cancelled" class="filter-tab {% if status_filter == 'cancelled' %}active{% endif %}">Cancelled</a>
+    </div>
+
+    {% if orders %}
+    <div class="orders-list">
+        {% for order in orders %}
+        <div class="order-list-card">
+            <div class="olc-token">#{{ order.token_number }}</div>
+            <div class="olc-info">
+                <h3>{{ order.stall.name }}</h3>
+                <div class="olc-items">
+                    {% for item in order.order_items.all|slice:":3" %}
+                        {{ item.menu_item.name }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                    {% if order.order_items.count > 3 %}+{{ order.order_items.count|add:"-3" }} more{% endif %}
+                </div>
+                <div class="olc-meta">
+                    <span><i class="fas fa-calendar"></i> {{ order.pickup_date|date:"d M" }}</span>
+                    <span><i class="fas fa-clock"></i> {{ order.get_break_slot_display }}</span>
+                    <span><i class="fas fa-rupee-sign"></i> ₹{{ order.total_amount }}</span>
+                </div>
+            </div>
+            <div class="olc-right">
+                <span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+                <a href="{% url 'order_detail' order.pk %}" class="btn btn-sm btn-outline">Details</a>
+                {% if order.status in 'pending,confirmed' %}
+                <form action="{% url 'cancel_order' order.pk %}" method="post" 
+                      onsubmit="return confirm('Cancel this order?')" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-shopping-bag" style="font-size:4rem;color:#ddd"></i>
+        <h3>No orders yet</h3>
+        <p>Start ordering from your favorite food stalls!</p>
+        <a href="{% url 'stall_list' %}" class="btn btn-primary">Browse Stalls</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

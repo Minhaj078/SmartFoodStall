@@ -1,0 +1,47 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Login - SmartFood{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-brand">
+            <i class="fas fa-utensils"></i>
+            <h1>SmartFood</h1>
+            <p>Sign in to your account</p>
+        </div>
+
+        <form method="post" class="auth-form">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div class="field-error">{{ field.errors.0 }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary btn-full btn-large">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
+        </form>
+
+        <p class="auth-switch">
+            Don't have an account? <a href="{% url 'register' %}">Register here</a>
+        </p>
+    </div>
+
+    <div class="auth-info">
+        <h2>Pre-order your favorite food</h2>
+        <ul class="auth-features">
+            <li><i class="fas fa-check-circle"></i> Skip the queue at food stalls</li>
+            <li><i class="fas fa-check-circle"></i> Choose your break time slot</li>
+            <li><i class="fas fa-check-circle"></i> Real-time order tracking</li>
+            <li><i class="fas fa-check-circle"></i> AI-powered crowd predictions</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Order #{{ order.token_number }} Details{% endblock %}
+
+{% block content %}
+<div class="container order-detail-page">
+    <div class="order-detail-header">
+        <a href="{% url 'my_orders' %}" class="back-link"><i class="fas fa-arrow-left"></i> My Orders</a>
+        <div class="order-token-badge">
+            <i class="fas fa-ticket-alt"></i>
+            Token #{{ order.token_number }}
+        </div>
+    </div>
+
+    <div class="order-detail-layout">
+        <!-- Status Tracker -->
+        <div class="status-tracker-card">
+            <h2><i class="fas fa-truck"></i> Order Status</h2>
+            <div class="status-tracker" id="statusTracker">
+                {% with statuses='pending,confirmed,preparing,ready,completed' %}
+                {% for s in 'pending confirmed preparing ready completed'|split %}
+                {% endfor %}
+                {% endwith %}
+                <div class="tracker-steps">
+                    <div class="tracker-step {% if order.status == 'pending' or order.status == 'confirmed' or order.status == 'preparing' or order.status == 'ready' or order.status == 'completed' %}step-done{% endif %}">
+                        <div class="step-circle"><i class="fas fa-clock"></i></div>
+                        <span>Pending</span>
+                    </div>
+                    <div class="tracker-line {% if order.status == 'confirmed' or order.status == 'preparing' or order.status == 'ready' or order.status == 'completed' %}line-done{% endif %}"></div>
+                    <div class="tracker-step {% if order.status == 'confirmed' or order.status == 'preparing' or order.status == 'ready' or order.status == 'completed' %}step-done{% endif %}">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <span>Confirmed</span>
+                    </div>
+                    <div class="tracker-line {% if order.status == 'preparing' or order.status == 'ready' or order.status == 'completed' %}line-done{% endif %}"></div>
+                    <div class="tracker-step {% if order.status == 'preparing' or order.status == 'ready' or order.status == 'completed' %}step-done{% endif %}">
+                        <div class="step-circle"><i class="fas fa-fire"></i></div>
+                        <span>Preparing</span>
+                    </div>
+                    <div class="tracker-line {% if order.status == 'ready' or order.status == 'completed' %}line-done{% endif %}"></div>
+                    <div class="tracker-step {% if order.status == 'ready' or order.status == 'completed' %}step-done{% endif %}">
+                        <div class="step-circle"><i class="fas fa-bell"></i></div>
+                        <span>Ready!</span>
+                    </div>
+                    <div class="tracker-line {% if order.status == 'completed' %}line-done{% endif %}"></div>
+                    <div class="tracker-step {% if order.status == 'completed' %}step-done{% endif %}">
+                        <div class="step-circle"><i class="fas fa-star"></i></div>
+                        <span>Done</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-badge status-{{ order.status }}" id="currentStatus">
+                {{ order.get_status_display }}
+            </div>
+
+            {% if order.status == 'ready' %}
+            <div class="pickup-alert">
+                <i class="fas fa-bell animate-bounce"></i>
+                <strong>Your order is ready for pickup!</strong>
+                <p>Please proceed to {{ order.stall.name }} with your token number.</p>
+            </div>
+            {% endif %}
+
+            {% if order.status in 'pending,confirmed' %}
+            <form action="{% url 'cancel_order' order.pk %}" method="post" style="margin-top:1rem"
+                  onsubmit="return confirm('Cancel this order?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">
+                    <i class="fas fa-times"></i> Cancel Order
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        <!-- Order Info -->
+        <div class="order-info-card">
+            <h2><i class="fas fa-receipt"></i> Order Summary</h2>
+            <div class="order-meta-grid">
+                <div class="meta-item">
+                    <label>Stall</label>
+                    <strong>{{ order.stall.name }}</strong>
+                </div>
+                <div class="meta-item">
+                    <label>Pickup Date</label>
+                    <strong>{{ order.pickup_date|date:"D, d M Y" }}</strong>
+                </div>
+                <div class="meta-item">
+                    <label>Break Slot</label>
+                    <strong>{{ order.get_break_slot_display }}</strong>
+                </div>
+                <div class="meta-item">
+                    <label>Ordered At</label>
+                    <strong>{{ order.created_at|date:"d M Y, h:i A" }}</strong>
+                </div>
+            </div>
+
+            <h3 style="margin-top:1.5rem">Items Ordered</h3>
+            <div class="order-items-list">
+                {% for item in order.order_items.all %}
+                <div class="order-item-row">
+                    <div class="oi-name">{{ item.menu_item.name }}</div>
+                    <div class="oi-qty">× {{ item.quantity }}</div>
+                    <div class="oi-price">₹{{ item.subtotal }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="order-total-row">
+                <strong>Total</strong>
+                <strong class="text-primary">₹{{ order.total_amount }}</strong>
+            </div>
+
+            {% if order.special_instructions %}
+            <div class="special-instructions">
+                <label><i class="fas fa-sticky-note"></i> Special Instructions</label>
+                <p>{{ order.special_instructions }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div style="text-align:center;margin-top:2rem">
+        <a href="{% url 'place_order' order.stall.pk %}" class="btn btn-primary">
+            <i class="fas fa-redo"></i> Order Again from {{ order.stall.name }}
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Live status tracking - poll every 10 seconds
+{% if order.status not in 'completed,cancelled' %}
+setInterval(() => {
+    fetch('/api/order-status/{{ order.pk }}/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.status) {
+                document.getElementById('currentStatus').className = 'status-badge status-' + data.status;
+                document.getElementById('currentStatus').textContent = data.status_display;
+                if (data.status === 'ready') {
+                    showPickupNotification();
+                }
+            }
+        }).catch(() => {});
+}, 10000);
+
+function showPickupNotification() {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('🍽️ Your food is ready!', {
+            body: 'Token #{{ order.token_number }} is ready for pickup at {{ order.stall.name }}',
+        });
+    }
+}
+
+// Request notification permission
+if ('Notification' in window) {
+    Notification.requestPermission();
+}
+{% endif %}
+</script>
+{% endblock %}

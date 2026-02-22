@@ -1,0 +1,224 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - Smart Food Stall{% endblock %}
+
+{% block content %}
+<div class="container dashboard-page">
+    <div class="dashboard-header">
+        <div>
+            <h1><i class="fas fa-chart-line"></i> Admin Dashboard</h1>
+            <p>Today: {{ today|date:"l, d F Y" }}</p>
+        </div>
+        <div class="dashboard-actions">
+            <a href="/admin/" class="btn btn-outline"><i class="fas fa-cog"></i> Django Admin</a>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card kpi-orders">
+            <div class="kpi-icon"><i class="fas fa-shopping-cart"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-value">{{ today_orders_count }}</div>
+                <div class="kpi-label">Today's Orders</div>
+            </div>
+        </div>
+        <div class="kpi-card kpi-pending">
+            <div class="kpi-icon"><i class="fas fa-clock"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-value">{{ pending_count }}</div>
+                <div class="kpi-label">Pending Orders</div>
+            </div>
+        </div>
+        <div class="kpi-card kpi-revenue">
+            <div class="kpi-icon"><i class="fas fa-rupee-sign"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-value">₹{{ today_revenue }}</div>
+                <div class="kpi-label">Today's Revenue</div>
+            </div>
+        </div>
+        <div class="kpi-card kpi-stalls">
+            <div class="kpi-icon"><i class="fas fa-store"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-value">{{ stalls|length }}</div>
+                <div class="kpi-label">Active Stalls</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Slot Demand Chart -->
+        <div class="dash-card">
+            <h2><i class="fas fa-chart-bar"></i> Slot-wise Orders Today</h2>
+            <canvas id="slotChart" height="200"></canvas>
+            <div class="slot-breakdown-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Slot</th>
+                            <th>Orders</th>
+                            <th>Revenue</th>
+                            <th>Pending</th>
+                            <th>Preparing</th>
+                            <th>Ready</th>
+                            <th>Done</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for slot in slot_breakdown %}
+                        <tr>
+                            <td>{{ slot.slot }}</td>
+                            <td><strong>{{ slot.count }}</strong></td>
+                            <td>₹{{ slot.revenue }}</td>
+                            <td><span class="badge-pending">{{ slot.pending }}</span></td>
+                            <td><span class="badge-preparing">{{ slot.preparing }}</span></td>
+                            <td><span class="badge-ready">{{ slot.ready }}</span></td>
+                            <td><span class="badge-completed">{{ slot.completed }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- AI Demand Forecast -->
+        <div class="dash-card">
+            <h2><i class="fas fa-brain"></i> AI Demand Forecast (Tomorrow - {{ tomorrow|date:"d M" }})</h2>
+            <div class="forecast-grid">
+                {% for pred in predictions %}
+                <div class="forecast-card">
+                    <div class="forecast-stall">{{ pred.stall }}</div>
+                    <div class="forecast-slot">{{ pred.slot }}</div>
+                    <div class="forecast-pred">
+                        <span class="forecast-num">{{ pred.predicted }}</span>
+                        <span class="forecast-unit">orders expected</span>
+                    </div>
+                    <div class="forecast-confidence">
+                        <div class="conf-bar">
+                            <div class="conf-fill" style="width: {{ pred.confidence }}%"></div>
+                        </div>
+                        <span>{{ pred.confidence }}% confidence</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="color:#888">Not enough historical data for predictions yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Orders Management -->
+        <div class="dash-card dash-wide">
+            <div class="dash-card-header">
+                <h2><i class="fas fa-list"></i> Recent Orders</h2>
+                <span class="live-badge"><span class="live-dot"></span> Live</span>
+            </div>
+            <div class="orders-management-table" id="ordersTable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Token</th>
+                            <th>Student</th>
+                            <th>Stall</th>
+                            <th>Slot</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in recent_orders %}
+                        <tr id="order-row-{{ order.pk }}">
+                            <td><strong>#{{ order.token_number }}</strong></td>
+                            <td>{{ order.user.first_name }} {{ order.user.last_name }}<br><small>{{ order.user.student_id }}</small></td>
+                            <td>{{ order.stall.name }}</td>
+                            <td>{{ order.get_break_slot_display }}</td>
+                            <td>₹{{ order.total_amount }}</td>
+                            <td>
+                                <span class="status-badge status-{{ order.status }}" id="status-{{ order.pk }}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <select class="status-select" onchange="updateStatus({{ order.pk }}, this.value)"
+                                        {% if order.status == 'completed' or order.status == 'cancelled' %}disabled{% endif %}>
+                                    <option value="">Update...</option>
+                                    <option value="confirmed">Confirm</option>
+                                    <option value="preparing">Preparing</option>
+                                    <option value="ready">Ready</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancel</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Slot Chart
+const slotData = {{ slot_breakdown|safe }};
+const ctx = document.getElementById('slotChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: {{ slot_breakdown|safe }}.map(s => s.slot),
+        datasets: [{
+            label: 'Orders',
+            data: {{ slot_breakdown|safe }}.map(s => s.count),
+            backgroundColor: ['#FF6B35', '#4ECDC4', '#45B7D1', '#96CEB4'],
+            borderRadius: 8,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+});
+
+// Update order status
+function updateStatus(orderId, newStatus) {
+    if (!newStatus) return;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? 
+        document.querySelector('[name=csrfmiddlewaretoken]').value : 
+        getCookie('csrftoken');
+    
+    fetch(`/api/update-status/${orderId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken },
+        body: `status=${newStatus}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const badge = document.getElementById('status-' + orderId);
+            badge.className = `status-badge status-${data.status}`;
+            badge.textContent = data.status_display;
+        }
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

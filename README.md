@@ -189,3 +189,30 @@ DATABASES = {  # Use PostgreSQL
 Install: `pip install gunicorn whitenoise dj-database-url psycopg2-binary`
 
 Run: `gunicorn food_stall_project.wsgi:application`
+
+---
+
+## 📸 Application Snapshots
+
+### 🏠 Home Page
+![Home Page](SnapShots/Home.png)
+
+---
+
+### 🍽️ Menu Page
+![Menu Page](SnapShots/Menu.png)
+
+---
+
+### 🤖 AI Menu Recommendation
+![AI Menu](SnapShots/Ai_Menu.png)
+
+---
+
+### 📦 My Orders
+![My Orders](SnapShots/My_Orders.png)
+
+---
+
+### 🏪 My Stalls (Admin View)
+![My Stalls](SnapShots/My_Stalls.png)

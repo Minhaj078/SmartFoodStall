@@ -74,3 +74,14 @@ style.textContent = `
 }
 `;
 document.head.appendChild(style);
+
+function toggleDropdown() {
+    document.getElementById("dropdownMenu").classList.toggle("show");
+}
+
+document.addEventListener("click", function (event) {
+    const menu = document.getElementById("userMenu");
+    if (!menu.contains(event.target)) {
+        document.getElementById("dropdownMenu").classList.remove("show");
+    }
+});

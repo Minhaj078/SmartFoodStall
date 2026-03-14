@@ -218,7 +218,7 @@ def cancel_order(request, pk):
 
 @login_required
 def admin_dashboard(request):
-    if not request.user.is_staff and not request.user.is_stall_owner:
+    if not request.user.is_staff and not request.user.is_stall_owner and request.user.role != 'admin':
         messages.error(request, 'Access denied.')
         return redirect('home')
 
@@ -280,7 +280,7 @@ def admin_dashboard(request):
 @login_required
 @require_POST
 def update_order_status(request, pk):
-    if not request.user.is_staff and not request.user.is_stall_owner:
+    if not request.user.is_staff and not request.user.is_stall_owner and request.user.role != 'admin':
         return JsonResponse({'error': 'Unauthorized'}, status=403)
 
     order = get_object_or_404(Order, pk=pk)

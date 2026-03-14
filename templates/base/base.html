@@ -25,7 +25,7 @@
           <a href="{% url 'stall_list' %}" class="nav-link">Food Stalls</a>
           {% if user.is_authenticated %}
           <a href="{% url 'my_orders' %}" class="nav-link">My Orders</a>
-          {% if user.is_staff or user.is_stall_owner %}
+          {% if user.is_staff or user.is_stall_owner or user.role == 'admin' %}
           <a href="{% url 'admin_dashboard' %}" class="nav-link nav-admin">
             <i class="fas fa-chart-line"></i> Dashboard
           </a>

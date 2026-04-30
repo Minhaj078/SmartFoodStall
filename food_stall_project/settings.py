@@ -73,7 +73,8 @@ DATABASES = {
 }
 
 # Use PostgreSQL if DATABASE_URL is provided (like in production or local env)
-database_url = os.environ.get("postgresql://postgres.uybkfzeydkfyykjuccvx:AhmadMinhaj078@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres")
+database_url = os.environ.get("DATABASE_URL")
+# print("DATABASE_URL:", database_url)
 if database_url:
     DATABASES['default'] = dj_database_url.config(
         default=database_url,

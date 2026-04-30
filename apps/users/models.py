@@ -20,6 +20,11 @@ class User(AbstractUser):
     def __str__(self):
         return f"{self.username} ({self.role})"
 
+    def save(self, *args, **kwargs):
+        if self.role in ['admin', 'stall_owner']:
+            self.is_staff = True
+        super().save(*args, **kwargs)
+
     @property
     def is_student(self):
         return self.role == 'student'

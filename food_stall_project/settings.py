@@ -4,12 +4,13 @@ Django settings for Smart Food Stall Pre-Ordering System
 
 from pathlib import Path
 import os
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-change-this-in-production-smart-food-stall-2024'
 
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
@@ -65,11 +66,20 @@ WSGI_APPLICATION = 'food_stall_project.wsgi.application'
 # Database
 
 DATABASES = {
-'default': {
-'ENGINE': 'django.db.backends.sqlite3',
-'NAME': BASE_DIR / 'db.sqlite3',
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
-}
+
+# Use PostgreSQL if DATABASE_URL is provided (like in production or local env)
+database_url = os.environ.get("postgresql://postgres.uybkfzeydkfyykjuccvx:AhmadMinhaj078@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres")
+if database_url:
+    DATABASES['default'] = dj_database_url.config(
+        default=database_url,
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 
 AUTH_USER_MODEL = 'users.User'
 

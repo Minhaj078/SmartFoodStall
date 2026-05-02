@@ -43,13 +43,22 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         if not self.token_number:
             from datetime import date
+            from django.db import transaction
+            
             today_str = date.today().strftime('%d%m')
-            count = Order.objects.filter(
-                stall=self.stall,
-                pickup_date=self.pickup_date
-            ).count() + 1
-            self.token_number = f"{today_str}{count:03d}"
-        super().save(*args, **kwargs)
+            
+            # Race condition fix: acquire a row-level lock on the stall
+            with transaction.atomic():
+                # Lock the stall record
+                stall = FoodStall.objects.select_for_update().get(id=self.stall_id)
+                count = Order.objects.filter(
+                    stall=stall,
+                    pickup_date=self.pickup_date
+                ).count() + 1
+                self.token_number = f"{today_str}{count:03d}"
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
     def calculate_total(self):
         total = sum(item.subtotal for item in self.order_items.all())

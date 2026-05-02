@@ -9,6 +9,7 @@ class FoodStall(models.Model):
     image = models.ImageField(upload_to='stalls/', blank=True, null=True)
     location = models.CharField(max_length=200, blank=True)
     is_open = models.BooleanField(default=True)
+    max_capacity = models.IntegerField(default=50, help_text="Maximum orders per break slot")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

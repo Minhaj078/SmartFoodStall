@@ -76,14 +76,20 @@ def get_peak_hours_analysis(stall_id, days=30):
     return result, peak_slots
 
 
-def get_slot_congestion_level(stall_id, break_slot, pickup_date):
+def get_slot_congestion_level(stall_id, break_slot, pickup_date, max_capacity=None):
     """
     Returns congestion level: low, medium, high
     Based on current confirmed orders vs capacity.
     """
     from apps.orders.models import Order
+    from apps.stalls.models import FoodStall
 
-    MAX_CAPACITY = 50  # configurable
+    if max_capacity is None:
+        try:
+            max_capacity = FoodStall.objects.values_list('max_capacity', flat=True).get(id=int(stall_id))
+        except (FoodStall.DoesNotExist, ValueError, TypeError):
+            max_capacity = 50
+
     current_count = Order.objects.filter(
         stall_id=stall_id,
         break_slot=break_slot,
@@ -91,7 +97,7 @@ def get_slot_congestion_level(stall_id, break_slot, pickup_date):
         status__in=['pending', 'confirmed', 'preparing']
     ).count()
 
-    ratio = current_count / MAX_CAPACITY
+    ratio = current_count / max_capacity
     if ratio < 0.4:
         return 'low', current_count
     elif ratio < 0.75:
@@ -103,10 +109,16 @@ def get_slot_congestion_level(stall_id, break_slot, pickup_date):
 def get_recommended_slot(stall_id, pickup_date):
     """Recommend the least congested slot for a given date."""
     from apps.orders.models import BREAK_SLOT_CHOICES
+    from apps.stalls.models import FoodStall
+
+    try:
+        max_cap = FoodStall.objects.values_list('max_capacity', flat=True).get(id=int(stall_id))
+    except (FoodStall.DoesNotExist, ValueError, TypeError):
+        max_cap = 50
 
     slot_loads = []
     for slot_value, slot_label in BREAK_SLOT_CHOICES:
-        level, count = get_slot_congestion_level(stall_id, slot_value, pickup_date)
+        level, count = get_slot_congestion_level(stall_id, slot_value, pickup_date, max_capacity=max_cap)
         slot_loads.append((slot_value, slot_label, level, count))
 
     # Sort by count ascending - recommend least busy

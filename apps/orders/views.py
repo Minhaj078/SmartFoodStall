@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Sum, Q, Avg
 from django.utils import timezone
 from django.db import transaction
 
@@ -19,7 +19,7 @@ from .ai_demand import (
 
 
 def home(request):
-    stalls = FoodStall.objects.filter(is_open=True)[:6]
+    stalls = FoodStall.objects.filter(is_open=True).annotate(avg_rating_db=Avg('reviews__rating'))[:6]
     today = timezone.now().date()
 
     # Today's stats
@@ -223,7 +223,7 @@ def admin_dashboard(request):
         return redirect('home')
 
     today = timezone.now().date()
-    stalls = FoodStall.objects.all()
+    stalls = FoodStall.objects.annotate(avg_rating_db=Avg('reviews__rating'))
     if request.user.is_stall_owner:
         stalls = stalls.filter(owner=request.user)
 
@@ -250,9 +250,24 @@ def admin_dashboard(request):
     # Demand predictions for tomorrow
     tomorrow = today + timezone.timedelta(days=1)
     predictions = []
+    
+    forecasts = DemandForecast.objects.filter(
+        stall__in=stalls,
+        forecast_date=tomorrow
+    ).select_related('stall')
+    
+    forecast_dict = {(f.stall_id, f.break_slot): f for f in forecasts}
+
     for stall in stalls:
         for slot_value, slot_label in BREAK_SLOT_CHOICES:
-            predicted, confidence = predict_demand_for_slot(stall.id, slot_value, tomorrow)
+            forecast = forecast_dict.get((stall.id, slot_value))
+            if forecast:
+                predicted = forecast.predicted_quantity
+                confidence = forecast.confidence_score
+            else:
+                predicted = 0
+                confidence = 0.0
+
             predictions.append({
                 'stall': stall.name,
                 'slot': slot_label,
@@ -284,6 +299,10 @@ def update_order_status(request, pk):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
 
     order = get_object_or_404(Order, pk=pk)
+    
+    # IDOR fix: ensure stall owner can only update their own stall's orders
+    if request.user.role == 'stall_owner' and order.stall.owner != request.user:
+        return JsonResponse({'error': 'Unauthorized: You do not own this stall'}, status=403)
     new_status = request.POST.get('status')
     valid_statuses = [s[0] for s in Order._meta.get_field('status').choices]
 
@@ -328,6 +347,3 @@ def order_status_api(request, pk):
         })
     except Order.DoesNotExist:
         return JsonResponse({'error': 'Not found'}, status=404)
-
-    print("RAW POST:", request.POST)
-    print("CART DATA:", request.POST.get("cart_data"))
